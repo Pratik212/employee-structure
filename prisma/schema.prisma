@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Change this to "mysql" or "sqlite" as needed
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+model User {
+  id            Int           @id @default(autoincrement())
+  email         String        @unique
+  passwordHash  String
+  role          Role          @default(EMPLOYEE)
+  employee      Employee?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Employee {
+  id            Int           @id @default(autoincrement())
+  userId        Int           @unique
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName     String
+  lastName      String
+  position      String
+  departmentId  Int
+  department    Department    @relation(fields: [departmentId], references: [id])
+  locationId    Int
+  location      Location      @relation(fields: [locationId], references: [id])
+  hireDate      DateTime
+  salary        Float
+  isActive      Boolean       @default(true)
+  managerId     Int?
+  manager       Employee?     @relation("EmployeeManagement", fields: [managerId], references: [id])
+  subordinates  Employee[]    @relation("EmployeeManagement")
+  attendances   Attendance[]
+  leaves        Leave[]
+  projectMembers ProjectMember[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Department {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  description   String?
+  employees     Employee[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Location {
+  id            Int           @id @default(autoincrement())
+  name          String
+  address       String
+  city          String
+  state         String?
+  country       String
+  postalCode    String?
+  employees     Employee[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Attendance {
+  id            Int           @id @default(autoincrement())
+  employeeId    Int
+  employee      Employee      @relation(fields: [employeeId], references: [id])
+  date          DateTime      @db.Date
+  checkIn       DateTime?
+  checkOut      DateTime?
+  status        String        // Present, Absent, Late, Half-Day
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([employeeId, date]) // An employee can only have one attendance record per day
+}
+
+model Leave {
+  id            Int           @id @default(autoincrement())
+  employeeId    Int
+  employee      Employee      @relation(fields: [employeeId], references: [id])
+  startDate     DateTime      @db.Date
+  endDate       DateTime      @db.Date
+  leaveType     String        // Annual, Sick, Personal, Maternity, etc.
+  reason        String?
+  status        String        // Pending, Approved, Rejected
+  approvedById  Int?
+  approvedOn    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Project {
+  id            Int           @id @default(autoincrement())
+  name          String
+  description   String?
+  startDate     DateTime      @db.Date
+  endDate       DateTime?     @db.Date
+  status        String        // Not Started, In Progress, Completed, On Hold
+  members       ProjectMember[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model ProjectMember {
+  id            Int           @id @default(autoincrement())
+  projectId     Int
+  project       Project       @relation(fields: [projectId], references: [id])
+  employeeId    Int
+  employee      Employee      @relation(fields: [employeeId], references: [id])
+  role          String        // Project Manager, Team Lead, Developer, etc.
+  joinDate      DateTime      @db.Date
+  endDate       DateTime?     @db.Date
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([projectId, employeeId]) // An employee can only have one role in a project
+}
